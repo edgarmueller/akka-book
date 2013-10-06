@@ -1,21 +1,28 @@
 package akka.book.avionics
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{ Actor, ActorRef }
+import akka.actor.Terminated
 
-class CoPilot extends Actor {
-  
+class CoPilot(plane: ActorRef,
+  autopilot: ActorRef,
+  altimeter: ActorRef) extends Actor {
+
   import Pilots._
-  
-  var controls:  ActorRef = context.system.deadLetters
-  var pilot :    ActorRef = context.system.deadLetters
-  var autopilot: ActorRef = context.system.deadLetters
+
+  var controls = context.system.deadLetters
+  var pilot: ActorRef = context.system.deadLetters
   var pilotName = context.system.settings.config.getString(
     "akka.book.avionics.flightcrew.pilotName")
-    
+
   def receive = {
     case ReadyToGo =>
       pilot = context.actorFor("../" + pilotName)
-      autopilot = context.actorFor("../AutoPilot")
-  }      
-          
+      context.watch(pilot)
+    case Terminated(_) =>
+      // Pilot died
+      plane ! Plane.GiveMeControl
+    case Plane.Controls(controlSurfaces) =>
+      controls = controlSurfaces
+  }
+
 }

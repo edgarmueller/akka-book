@@ -8,23 +8,21 @@ object Pilots {
   case object RelinquishControls
 }
 
-class Pilot extends Actor {
+class Pilot(plane: ActorRef, 
+            autopilot: ActorRef,
+            var controls: ActorRef,
+            altimeter: ActorRef) extends Actor {
 
   import Pilots._
-  import Plane._
   
-  var controls: ActorRef = context.system.deadLetters
-  var copilot:  ActorRef = context.system.deadLetters
-  var autopilot: ActorRef = context.system.deadLetters
+  var copilot: ActorRef = context.system.deadLetters
   var copilotName = context.system.settings.config.getString(
       "akka.book.avionics.flightcrew.copilotName")
       
-  def receive = {
+  def receive = { 
     case ReadyToGo =>
-      context.parent ! Plane.GiveMeControl
       copilot = context.actorFor("../" + copilotName)
-      autopilot = context.actorFor("../AutoPilot")
-    case Controls(controlSurfaces) =>
+    case Plane.Controls(controlSurfaces) =>
       controls = controlSurfaces
   }      
 }

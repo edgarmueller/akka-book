@@ -16,6 +16,10 @@ object Altimeter {
 	case class AltitudeUpdate(altitude: Double)
 }
 
+trait AltimeterProvider {
+	def newAltimeter: Actor = Altimeter()
+}
+
 class Altimeter extends Actor with ActorLogging { this: EventSource =>
   
   import Altimeter._
