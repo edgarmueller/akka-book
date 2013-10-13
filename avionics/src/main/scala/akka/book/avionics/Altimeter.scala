@@ -1,32 +1,32 @@
 // Imports to help us create Actors, kplus logging
 package akka.book.avionics
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{ Actor, ActorLogging }
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 object Altimeter {
-	
-	def apply() = new Altimeter with ProductionEventSource
-  
-	// Sent to the Altimeter to inform it about a rate-of-climb changes
-	case class RateChange(amount: Float)
-	
-	// Sent by the Altimeter at regular intervals
-	case class AltitudeUpdate(altitude: Double)
+
+  def apply() = new Altimeter with ProductionEventSource
+
+  // Sent to the Altimeter to inform it about a rate-of-climb changes
+  case class RateChange(amount: Float)
+
+  // Sent by the Altimeter at regular intervals
+  case class AltitudeUpdate(altitude: Double)
 }
 
 trait AltimeterProvider {
-	def newAltimeter: Actor = Altimeter()
+  def newAltimeter: Actor = Altimeter()
 }
 
 class Altimeter extends Actor with ActorLogging { this: EventSource =>
-  
+
   import Altimeter._
+  import context._
   
   // The maximum ceiling of our plane in 'feet'
   val ceiling = 43000
-  
+
   // The maximum rate of climb for our plane in 'feet per minute'
   val maxRateOfClimb = 5000
 
@@ -39,31 +39,30 @@ class Altimeter extends Actor with ActorLogging { this: EventSource =>
   // As time passes, we need to change the altitude based on the time passed.
   // The lastTick allows us to figure out how much time has passed
   var lastTick = System.currentTimeMillis
-  
+
   // We need to periodically update our altitude. This scheduled message send
   // will tell us when to do that
-  val ticker = context.system.scheduler.schedule(100.millis
-      , 100.millis, self, Tick)
-      
+  val ticker = context.system.scheduler.schedule(100.millis, 100.millis, self, Tick)
+
   // An internal message we send to ourselves to tell us to update our
   // altitude
   case object Tick
-  
+
   def altimeterReceive: Receive = {
     case RateChange(amount) =>
-    // Keep the value of rateOfClimb within [1, 1]
+      // Keep the value of rateOfClimb within [1, 1]
       rateOfClimb = amount.min(1.0f).max(-1.0f) * maxRateOfClimb
       log.info(s"Altimeter changed rate of climb to $rateOfClimb.")
     // Calculate a new altitude
     case Tick =>
       val tick = System.currentTimeMillis
-      altitude = altitude + ((tick - lastTick)/ 60000.0) * rateOfClimb
+      altitude = altitude + ((tick - lastTick) / 60000.0) * rateOfClimb
       lastTick = tick
       sendEvent(AltitudeUpdate(altitude))
   }
-  
+
   override type Receive = PartialFunction[Any, Unit]
-  def receive = eventSourceReceive orElse altimeterReceive  
-  
+  def receive = eventSourceReceive orElse altimeterReceive
+
   override def postStop(): Unit = ticker.cancel
 }

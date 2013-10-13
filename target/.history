@@ -1,0 +1,7 @@
+run
+reload
+run
+compile
+dir
+ls
+exit

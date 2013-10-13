@@ -16,9 +16,10 @@ import akka.book.avionics.supervisors.IsolatedStopSupervisor
 import akka.actor.OneForOneStrategy
 
 object Plane {
-  def apply() = new Plane with AltimeterProvider with PilotProvider with LeadFlightAttendantProvider
+  def apply() = new Plane with AltimeterProvider with HeadingIndicatorProvider with PilotProvider with LeadFlightAttendantProvider
   // Returns the control surface to the Actor that asks for them
   case object GiveMeControl
+  case object LostControl
   case class Controls(controlSurfaces: ActorRef)
   case object RequestCoPilot
   case class CoPilotReference(coPilot: ActorRef)
@@ -28,7 +29,7 @@ object Plane {
 // by passing in a specific factory we can use to build the Altimeter
 class Plane extends Actor with ActorLogging {
 
-  this: AltimeterProvider with PilotProvider with LeadFlightAttendantProvider =>
+  this: AltimeterProvider with HeadingIndicatorProvider with PilotProvider with LeadFlightAttendantProvider =>
 
   import Plane._    
   import Altimeter._
@@ -47,10 +48,14 @@ class Plane extends Actor with ActorLogging {
     val controls = context.actorOf(Props(
       new IsolatedResumeSupervisor with OneForOneStrategyFactory {
         def childStarter() {
-          val alt = context.actorOf(Props(newAltimeter), "Altimeter")
+          val altimeter = context.actorOf(Props(newAltimeter), 
+              "Altimeter")
+          val heading = context.actorOf(Props(newHeadingIndicator), 
+              "HeadingIndicator")
           // These children get implicitly added to the hierarchy
           context.actorOf(Props(newAutoPilot(plane)), "AutoPilot")
-          context.actorOf(Props(new ControlSurfaces(alt)), "ControlSurfaces")
+          context.actorOf(Props(new ControlSurfaces(plane, altimeter, heading)), 
+              "ControlSurfaces")
         }
       }), "Equipment")
     Await.result(controls ? WaitForStart, 1.second)
