@@ -95,7 +95,6 @@ class Pilot(plane: ActorRef,
   // so there's no point in having it around for long
   def bootstrap: Receive = {
     case ReadyToGo =>
-      println("ready to go")
       val copilot = context.actorFor("../" + copilotName)
       val flyer = context.actorFor("FlyingBehaviour")
       flyer ! SubscribeTransitionCallBack(self)
@@ -149,7 +148,6 @@ class Pilot(plane: ActorRef,
   // Updates the FlyingBehaviour with zaphod calculations
   // and then becomes the zaphod behaviour
   def becomeZaphod(copilot: ActorRef, flyer: ActorRef) = {
-    println("zaphod!!")
     flyer ! NewElevatorCalculator(zaphodCalcElevator)
     flyer ! NewBankCalculator(zaphodCalcAilerons)
     context.become(zaphod(copilot, flyer))
